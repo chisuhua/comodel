@@ -48,6 +48,18 @@ typedef uint64_t uint64;
 #endif
 
 
+#define DTRACE(x) (false)
+#define DDUMP(x, data, count) do {} while (0)
+#define DPRINTF(x, ...) do {} while (0)
+#define DPRINTFS(x, ...) do {} while (0)
+#define DPRINTFR(...) do {} while (0)
+#define DDUMPN(data, count) do {} while (0)
+#define DPRINTFN(...) do {} while (0)
+#define DPRINTFNR(...) do {} while (0)
+#define DPRINTF_UNCONDITIONAL(x, ...) do {} while (0)
+
+
+
 // A macro to disallow the copy and move constructor and operator= functions
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                                         \
   TypeName(const TypeName&) = delete;                                                              \

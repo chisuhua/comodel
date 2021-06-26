@@ -1,15 +1,14 @@
 #pragma once
 #include <string>
 
-#include "base/cprintf.hh"
-#include "base/debug.hh"
-#include "base/match.hh"
-#include "base/types.hh"
-#include "sim/core.hh"
+#include "base/inc/cprintf.h"
+#include "base/inc/debug.h"
+#include "base/inc/match.h"
+#include "base/inc/types.h"
+// #include "sim/core.hh"
 
 namespace Trace {
 
-#if 0
 /** Debug logging base class.  Handles formatting and outputting
  *  time/name/message messages */
 class Logger
@@ -35,8 +34,7 @@ class Logger
     {
         if (!name.empty() && ignore.match(name))
             return;
-        std::ostringstream line;
-        ccprintf(line, fmt, args...);
+        auto line = GetFormatString(fmt, args...);
         logMessage(when, name, flag, line.str());
     }
 
@@ -123,7 +121,6 @@ class Named
   public:
     const std::string &name() const { return _name; }
 };
-#endif
 
 //
 // DPRINTF is a debugging trace facility that allows one to
@@ -134,6 +131,7 @@ class Named
 // If you desire that the automatic printing not occur, use DPRINTFR
 // (R for raw)
 //
+#undef TRACING_ON
 
 #if TRACING_ON
 
@@ -200,5 +198,4 @@ class Named
 #define DPRINTF_UNCONDITIONAL(x, ...) do {} while (0)
 
 #endif  // TRACING_ON
-
 

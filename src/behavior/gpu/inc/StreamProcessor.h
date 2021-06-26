@@ -3,7 +3,7 @@
 #include "inc/MsgQueue.h"
 #include "inc/Module.h"
 #include "inc/RegDef.h"
-#include "inc/pps.h"
+#include "stream.h"
 
 
 #include <vector>
@@ -122,8 +122,8 @@ class StreamProcessor : public Module {
 
         void HandleRegWriteCP_GLB_CTRL(uint32_t val);
     public:
-        void LaunchGrid(hsa_kernel_dispatch_packet_t& aql_pkt);
-        void LaunchDMA(hsa_dma_copy_packet_t& aql_pkt) ;
+        void LaunchGrid(kernel_dispatch_packet_t& aql_pkt);
+        void LaunchDMA(dma_copy_packet_t& aql_pkt) ;
         void ProcessDispatchDone();
         void ProcessRespMsg(MsgPtr);
         void TranslateVA(uint64_t va, uint64_t *pa, bool emu_addr = true) ;

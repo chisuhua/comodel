@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <vector>
 
-// #include "logging.hh"
+#include "base/inc/logging.h"
 
 inline void
 eat_lead_white(std::string &s)

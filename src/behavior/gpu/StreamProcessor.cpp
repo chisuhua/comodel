@@ -2,12 +2,12 @@
 #include "inc/Message.h"
 #include "inc/RegDef.h"
 // #include "inc/common.h"
-#include "inc/queue.h"
-#include "inc/signal.h"
+#include "queue.h"
+#include "signal.h"
 #include "inc/ComputeUnit.h"
 #include "inc/CopyEngine.h"
 #include "inc/Memory.h"
-#include "inc/pps.h"
+#include "stream.h"
 #include <unistd.h>
 
 inline uint64_t PackHighLow(uint32_t hi, uint32_t lo) {
@@ -23,7 +23,7 @@ using namespace model;
 //     Module::FetchInput();
 // };
 
-void StreamProcessor::LaunchGrid(hsa_kernel_dispatch_packet_t& aql_pkt) {
+void StreamProcessor::LaunchGrid(kernel_dispatch_packet_t& aql_pkt) {
     uint32_t GridDimX = aql_pkt.grid_size_x;
     uint32_t GridDimY = aql_pkt.grid_size_y;
     uint32_t GridDimZ = aql_pkt.grid_size_z;
@@ -86,7 +86,7 @@ void StreamProcessor::ProcessRespMsg(MsgPtr msg)  {
     // in_translation = false;
 }
 
-void StreamProcessor::LaunchDMA(hsa_dma_copy_packet_t& aql_pkt) {
+void StreamProcessor::LaunchDMA(dma_copy_packet_t& aql_pkt) {
     auto pkt = make_shared<DmaCopyPacket>();
     pkt->src = aql_pkt.src;
     pkt->dst = aql_pkt.dst;
@@ -122,7 +122,7 @@ void StreamProcessor::LaunchDMA(hsa_dma_copy_packet_t& aql_pkt) {
 void StreamProcessor::ProcessDispatchDone()  {
 
     for (auto it = m_dispatch_response_list.begin(); it != m_dispatch_response_list.end();) {
-        hsa_signal_t completion_signal;
+        signal_t completion_signal;
         completion_signal.handle = it->first;
         //hsa_signal_t completion_signal = it->first;
         //uint64_t completion_signal = it->first;
@@ -137,8 +137,8 @@ void StreamProcessor::ProcessDispatchDone()  {
         }
         if (done) {
             core::SharedSignal* sig = ::core::SharedSignal::Object(completion_signal);
-            uint64_t signal_value = sig->amd_signal.value - 1;
-            sig->amd_signal.value = signal_value;
+            uint64_t signal_value = sig->co_signal_.value - 1;
+            sig->co_signal_.value = signal_value;
             it = m_dispatch_response_list.erase(it);
 
         } else {
@@ -158,7 +158,7 @@ bool StreamProcessor::Execute() {
         // uint32_t queue_id = it->first;
         shared_ptr<CommandQueue> cmd_queue = it->second;
 
-        core::AqlPacket* buffer = static_cast<core::AqlPacket*>(cmd_queue->base_address);
+        AqlPacket* buffer = static_cast<AqlPacket*>(cmd_queue->base_address);
         // hsa_signal_t signal = cp_queue.hsa_queue.doorbell_signal;
         uint32_t size = cmd_queue->size;
 
@@ -166,14 +166,14 @@ bool StreamProcessor::Execute() {
 
         uint64_t read = cmd_queue->read_dispatch_id;
         while (read != cmd_queue->write_dispatch_id) {
-            core::AqlPacket& pkt = buffer[read % size];
-            const uint8_t packet_type = pkt.dispatch.header >> HSA_PACKET_HEADER_TYPE;
+            AqlPacket& pkt = buffer[read % size];
+            const uint8_t packet_type = pkt.dispatch.header >> PACKET_HEADER_TYPE;
 
-            if (packet_type == HSA_PACKET_TYPE_INVALID) {
+            if (packet_type == PACKET_TYPE_INVALID) {
                 printf("ERROR: receive invalid packet int cp");
                 break;
-            } else if (packet_type == HSA_PACKET_TYPE_KERNEL_DISPATCH) {
-                hsa_kernel_dispatch_packet_t& dispatch_pkt = pkt.dispatch;
+            } else if (packet_type == PACKET_TYPE_KERNEL_DISPATCH) {
+                kernel_dispatch_packet_t& dispatch_pkt = pkt.dispatch;
                 /*
                 if (translated_kernel_addr == 0) {
                     TranslateVA((uint64_t)dispatch_pkt.kernel_object, (uint64_t*)&translated_kernel_addr);
@@ -189,22 +189,22 @@ bool StreamProcessor::Execute() {
                     translated_kernel_addr = 0;
                     translated_kernel_args = 0;
                 //}
-            } else if (packet_type == HSA_PACKET_TYPE_DMA_COPY) {
-                hsa_dma_copy_packet_t& dma_pkt = pkt.dma_copy;
+            } else if (packet_type == PACKET_TYPE_DMA_COPY) {
+                dma_copy_packet_t& dma_pkt = pkt.dma_copy;
 			    LaunchDMA(dma_pkt);
-            } else if (packet_type == HSA_PACKET_TYPE_BARRIER_AND ||
-                packet_type == HSA_PACKET_TYPE_BARRIER_OR) {
+            } else if (packet_type == PACKET_TYPE_BARRIER_AND ||
+                packet_type == PACKET_TYPE_BARRIER_OR) {
                 if (pkt.barrier_and.completion_signal.handle != 0) {
                     core::SharedSignal* sig = ::core::SharedSignal::Object(pkt.barrier_and.completion_signal);
-                    uint64_t signal_value = sig->amd_signal.value - 1;
-                    sig->amd_signal.value = signal_value;
+                    uint64_t signal_value = sig->co_signal_.value - 1;
+                    sig->co_signal_.value = signal_value;
                 }
 
             }
             read++;
         	auto header=pkt.dispatch.header;
 	        header &= 0xFF00;
-            header |= (HSA_PACKET_TYPE_INVALID << HSA_PACKET_HEADER_TYPE);
+            header |= (PACKET_TYPE_INVALID << PACKET_HEADER_TYPE);
 	        *(volatile uint16_t*)&pkt.dispatch.header=header;
 
 	        queue_busy = true;
